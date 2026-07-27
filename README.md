@@ -1,19 +1,35 @@
 # StoryWriter Labs
 
-Terraform for the [Ghost CMS](https://ghost.org) site at **labs.storywriter.net**,
-running on a dedicated `t4g.micro` EC2 instance.
+The [Ghost CMS](https://ghost.org) site at **labs.storywriter.net** — its theme,
+its Ghost settings, and the Terraform for the dedicated `t4g.micro` EC2 instance
+it runs on.
 
 Kept in its own repo, with its own Terraform state, so an `apply` here can never
 affect the separate Laravel API that powers the StoryWriter app.
 
-## Scope: what is and isn't in Terraform
+**Ghost version on the box: 6.x** (check with `ghost version` in `/var/www/ghost`;
+update this line when you `ghost update`).
 
-Only the AWS "bones" are version-controlled here — the key pair, security group,
-Elastic IP, EC2 instance and Route 53 record. Ghost itself (MySQL, Node, nginx,
-Let's Encrypt SSL) is installed manually with `ghost-cli`, which is the only
-install path Ghost supports; wrapping it in `user_data` would mean maintaining
-an unsupported reimplementation of their installer for no real gain on a
-single-instance blog.
+## Scope: what is and isn't version-controlled
+
+Three things live here, and nothing else:
+
+| In the repo | Not in the repo |
+| --- | --- |
+| `theme/` — the Handlebars theme (deployed by CI) | Ghost core — installed and updated by `ghost-cli` |
+| `ghost/` — `routes.yaml`, `redirects.yaml`, a code-injection mirror | Content: posts, members, images (MySQL + `content/`) |
+| `terraform/` — the AWS bones | `config.production.json` — DB and mail credentials |
+
+Ghost core is deliberately absent. `ghost-cli` owns `/var/www/ghost` as versioned
+directories behind a `current` symlink and runs MySQL migrations on `ghost update`;
+there is no supported "deploy Ghost from git" path for a `ghost-cli` install, so
+committing core would mean version-controlling a directory we don't control.
+`ghost update` is the upgrade mechanism, `ghost update --rollback` the escape hatch.
+
+Likewise Ghost itself (MySQL, Node, nginx, Let's Encrypt SSL) is installed
+manually with `ghost-cli` rather than from `user_data` — the only install path
+Ghost supports; wrapping it would mean maintaining an unsupported
+reimplementation of their installer for no real gain on a single-instance blog.
 
 The consequence: **re-running Terraform is not the disaster recovery plan.**
 Recovery comes from EBS snapshots plus Ghost's own JSON/zip exports. Terraform
@@ -21,6 +37,13 @@ rebuilds the box; the snapshot restores the site.
 
 ```
 labs/
+  theme/                     the storywriter-labs theme — see theme/README.md
+  ghost/
+    routes.yaml              URL structure / collections — upload via admin
+    redirects.yaml           301s and 302s — upload via admin
+    code-injection.md        mirror of Admin -> Settings -> Code injection
+  .github/workflows/
+    deploy-theme.yml         build + gscan + push theme on merge to main
   terraform/
     main.tf                  provider + terraform block
     backend.tf               S3 remote state (key: environments/labs/...)
@@ -86,6 +109,40 @@ SSH in and follow <https://docs.ghost.org/install/ubuntu>:
 The 2 GB swap file is created automatically on first boot (`user-data.sh`);
 confirm with `swapon --show` before running `ghost install`. MySQL 8 and Node
 will OOM on a 1 GB instance without it.
+
+## Theme deployment
+
+The theme is the only part of this repo that deploys automatically. Merging to
+`main` with changes under `theme/` runs `.github/workflows/deploy-theme.yml`,
+which builds the assets, validates with `gscan --fatal`, and uploads the theme
+over the Ghost **Admin API** — no SSH, no deploy key on the box.
+
+One-time setup:
+
+1. In Ghost Admin → Settings → **Integrations** → *Add custom integration*, name
+   it "GitHub Actions" and copy the **Admin API key** (the `id:secret` pair).
+2. Add two GitHub repo secrets:
+   - `GHOST_ADMIN_API_URL` → `https://labs.storywriter.net`
+   - `GHOST_ADMIN_API_KEY` → the Admin API key from step 1
+3. Push. Then activate `storywriter-labs` once in Admin → Design; later deploys
+   update the active theme in place.
+
+Rolling back a bad theme deploy is `git revert` + push — Ghost keeps no theme
+history of its own.
+
+⚠️ **Don't edit theme code in Ghost Admin.** Ghost 6 lets you edit theme files
+in the admin UI; anything changed there is silently overwritten by the next
+deploy. Same for `routes.yaml` and code injection: those live in MySQL, so the
+files in `ghost/` are only the source of truth if you keep them that way.
+
+## Ghost settings (`ghost/`)
+
+Not deployed by CI — Ghost has no API for these, so they're uploaded by hand and
+mirrored here for review and restore:
+
+- `routes.yaml` / `redirects.yaml` — Admin → Settings → Advanced → **Labs**, upload.
+  (`routes.yaml` can also be copied to `content/settings/routes.yaml` + `ghost restart`.)
+- `code-injection.md` — paste into Admin → Settings → **Code injection**.
 
 ## Backups
 

@@ -1,0 +1,19 @@
+# URL redirects for labs.storywriter.net.
+#
+# NOT deployed by CI. Upload in Ghost Admin -> Settings -> Advanced -> Labs ->
+# Redirects. Ghost serves these before routing, so they're the right place for
+# post-slug changes and any legacy paths.
+#
+# Docs: https://ghost.org/docs/themes/routing/#redirects
+#
+# Format (both blocks optional; regex allowed with capture groups):
+#
+# 301:
+#   /old-post-slug/: /new-post-slug/
+#   ^\/blog\/(.*): /$1
+# 302:
+#   /temporary/: /somewhere-else/
+
+301:
+
+302:

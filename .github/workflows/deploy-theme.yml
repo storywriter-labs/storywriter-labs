@@ -1,0 +1,64 @@
+name: Deploy theme
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'theme/**'
+      - '.github/workflows/deploy-theme.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: deploy-theme
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Build, validate and deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: lts/*
+          cache: pnpm
+          cache-dependency-path: theme/pnpm-lock.yaml
+
+      - name: Install
+        working-directory: theme
+        run: pnpm install --frozen-lockfile
+
+      # Compiles assets/css + assets/js into assets/built, which is gitignored.
+      # Must run before the deploy step, or the theme ships without styles.
+      - name: Build assets
+        working-directory: theme
+        run: pnpm build
+
+      # gscan catches theme-API breakages (deprecated helpers, missing
+      # templates). Fatal here so a broken theme never reaches production.
+      - name: Validate theme
+        working-directory: theme
+        run: pnpm test:ci
+
+      - name: Deploy to Ghost
+        uses: TryGhost/action-deploy-theme@v2
+        with:
+          api-url: ${{ secrets.GHOST_ADMIN_API_URL }}
+          api-key: ${{ secrets.GHOST_ADMIN_API_KEY }}
+          working-directory: theme
+          exclude: >-
+            assets/css
+            assets/js
+            gulpfile.js
+            pnpm-lock.yaml
+            pnpm-workspace.yaml
+            dist
+            README.md

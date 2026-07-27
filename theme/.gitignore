@@ -1,0 +1,20 @@
+node_modules
+package-lock.json
+npm-debug.log
+
+# Build output. Unlike upstream Casper, we do NOT commit built assets — CI runs
+# `pnpm build` before deploying, so committing them would only invite drift
+# between assets/css/*.css and assets/built/*.css. Run `pnpm build` locally
+# before previewing the theme in a local Ghost.
+assets/built/
+
+# `gulp zip` output — the deploy action builds its own zip
+dist/
+
+*.log
+*.pid
+.idea/*
+*.iml
+.DS_Store
+
+config.json

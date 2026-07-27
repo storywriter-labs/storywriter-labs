@@ -1,0 +1,20 @@
+# Ghost URL structure for labs.storywriter.net.
+#
+# NOT deployed by CI — routes.yaml is a Ghost *setting*, not a theme file.
+# Upload it in Ghost Admin -> Settings -> Advanced -> Labs -> Routes, or copy it
+# to /var/www/ghost/content/settings/routes.yaml and `ghost restart`.
+# Treat this file as the source of truth: download from admin and commit if it
+# ever changes on the server, so the two don't silently diverge.
+#
+# Docs: https://ghost.org/docs/themes/routing/
+
+routes:
+
+collections:
+  /:
+    permalink: /{slug}/
+    template: index
+
+taxonomies:
+  tag: /tag/{slug}/
+  author: /author/{slug}/
