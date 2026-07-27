@@ -1,0 +1,31 @@
+# Terraform
+# NB: .terraform.lock.hcl is deliberately NOT ignored — it pins provider
+# versions and checksums so every clone resolves the same AWS provider.
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.tfstate.lock.info
+*.tfplan
+*.tfvars
+!*.tfvars.example
+
+# Backend config — holds the account-specific state bucket name
+backend.hcl
+
+# Crash log files
+crash.log
+crash.*.log
+
+# Sensitive files
+*.pem
+*.key
+
+# Override files
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# CLI configuration
+.terraformrc
+terraform.rc

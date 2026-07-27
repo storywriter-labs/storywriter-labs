@@ -1,0 +1,34 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored.
+#
+# The VPC, subnet and hosted zone must already exist — this config only reads
+# them, it never creates or modifies them. Find the IDs with:
+#   aws ec2 describe-vpcs --query 'Vpcs[].{id:VpcId,cidr:CidrBlock}'
+#   aws ec2 describe-subnets --filters Name=vpc-id,Values=vpc-xxxxxxxx \
+#     --query 'Subnets[].{id:SubnetId,az:AvailabilityZone,public:MapPublicIpOnLaunch}'
+#   aws route53 list-hosted-zones-by-name --query 'HostedZones[].{id:Id,name:Name}'
+
+aws_region      = "REPLACE_WITH_AWS_REGION"
+aws_profile     = "REPLACE_WITH_AWS_CLI_PROFILE" # or delete this line to use the default credential chain
+vpc_id          = "vpc-REPLACE"
+subnet_id       = "subnet-REPLACE" # must be a public subnet
+route53_zone_id = "REPLACE_WITH_HOSTED_ZONE_ID"
+
+# Dedicated key pair for this box. Generate locally, then paste the .pub here:
+#   ssh-keygen -t ed25519 -f ~/.ssh/KEY-NAME-VALUE -C KEY-NAME
+key_pair_name  = "KEY-NAME-VALUE"
+ssh_public_key = "ssh-ed25519 AAAA...REPLACE_WITH_CONTENTS_OF_YOUR_.pub KEY-NAME"
+
+# Must be an ARM (Graviton) family — the AMI lookup filters on arm64.
+instance_type = "INSTANCE-TYPE"
+domain_name   = "INSTANCE-URL"
+app_name      = "APP-NAME"
+environment   = "ENV"
+swap_size_gb  = 2
+
+# One /32 per trusted IP — add as many as you need. Nothing deploys to this box
+# from CI, so there's no reason to open SSH wider than your own addresses.
+# Find an IP with: curl -s https://checkip.amazonaws.com
+allowed_ssh_cidrs = [
+  "REPLACE_WITH_IP_1/32",
+  "REPLACE_WITH_IP_2/32",
+]

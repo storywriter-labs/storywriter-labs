@@ -1,0 +1,11 @@
+# Copy to backend.hcl and fill in, then:
+#   terraform init -backend-config=backend.hcl
+#
+# backend.hcl is gitignored — it holds the account-specific state bucket name.
+# The bucket must already exist; this config does not create it.
+
+bucket = "REPLACE_WITH_STATE_BUCKET_NAME"
+region = "REPLACE_WITH_STATE_BUCKET_REGION"
+
+# Optional — omit to use the default AWS credential chain.
+profile = "REPLACE_WITH_AWS_CLI_PROFILE"
