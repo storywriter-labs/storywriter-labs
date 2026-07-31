@@ -26,7 +26,7 @@ jobs:
 
       # The pnpm version pin lives in theme/package.json, not at the repo root,
       # so point the action at it rather than duplicating the version here.
-      - uses: pnpm/action-setup@v4
+      - uses: pnpm/action-setup@v6
         with:
           package_json_file: theme/package.json
 
