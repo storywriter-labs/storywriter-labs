@@ -110,6 +110,73 @@ The 2 GB swap file is created automatically on first boot (`user-data.sh`);
 confirm with `swapon --show` before running `ghost install`. MySQL 8 and Node
 will OOM on a 1 GB instance without it.
 
+## Local nginx change: lazy DNS for `ap.ghost.org`
+
+**This lives only on the box.** It is not in this repo and no automation restores
+it. Re-apply it by hand if it is ever lost — see "when it gets reverted" below.
+
+Ghost-CLI's stock nginx template proxies two ActivityPub path groups to Ghost's
+hosted federation service at `ap.ghost.org`:
+
+```nginx
+location ~ /.ghost/activitypub/* { ... proxy_pass https://ap.ghost.org; }
+location ~ /.well-known/(webfinger|nodeinfo) { ... proxy_pass https://ap.ghost.org; }
+```
+
+A **literal** hostname in `proxy_pass` makes nginx resolve it once, while parsing
+the config. That has bitten us:
+
+- **2026-07-29** — `unattended-upgrades` replaced `libc6` and restarted nginx.
+  The glibc resolver was mid-upgrade, the lookup failed, and nginx aborted with
+  `[emerg] host not found in upstream "ap.ghost.org"`. It never came back. The
+  whole site was down for two days, including pages that never touch ActivityPub.
+- The record has a **300s TTL**, but nginx pins the first IP until a reload, so
+  federation would silently break whenever Ghost moves that endpoint.
+
+The fix, in `/etc/nginx/sites-available/labs.storywriter.net-ssl.conf`, defers
+the lookup to request time. In the `server` block:
+
+```nginx
+resolver 169.254.169.253 valid=30s ipv6=off;
+resolver_timeout 5s;
+```
+
+and in **both** ActivityPub `location` blocks:
+
+```nginx
+proxy_ssl_server_name on;
+proxy_ssl_name ap.ghost.org;
+set $ap_upstream "ap.ghost.org";
+proxy_pass https://$ap_upstream$request_uri;
+```
+
+Details that matter if you retype this:
+
+- `169.254.169.253` is AmazonProvidedDNS. nginx does **not** read
+  `/etc/resolv.conf`, so a resolver must be named. Prefer it over the
+  systemd-resolved stub (`127.0.0.53`): resolution then does not depend on a
+  local daemon that package upgrades restart — the exact 2026-07-29 trigger.
+- `ipv6=off` — the instance has no global IPv6 address and `ap.ghost.org`
+  publishes no AAAA record, so AAAA lookups can only stall or fail.
+- `$request_uri`, **not** `$uri` — it keeps the query string. Webfinger is called
+  as `?resource=acct:...`, so `$uri` would silently break federation.
+
+After the change, a DNS failure returns 502 on those two paths only. nginx still
+starts, and the rest of the site keeps serving.
+
+**When it gets reverted:** `ghost update` does *not* touch this file (the
+ghost-cli nginx extension only implements a `setup()` hook). But `ghost setup`,
+`ghost setup nginx`, and `ghost setup ssl` regenerate it from the stock template
+and will drop these edits. Run `sudo nginx -t` after any of them.
+
+Verify with:
+
+```bash
+sudo nginx -t && sudo systemctl reload nginx
+curl -s -o /dev/null -w '%{http_code}\n' \
+  "https://labs.storywriter.net/.well-known/webfinger?resource=acct:index@labs.storywriter.net"
+```
+
 ## Theme deployment
 
 The theme is the only part of this repo that deploys automatically. Merging to
