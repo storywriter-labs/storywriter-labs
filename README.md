@@ -177,6 +177,47 @@ curl -s -o /dev/null -w '%{http_code}\n' \
   "https://labs.storywriter.net/.well-known/webfinger?resource=acct:index@labs.storywriter.net"
 ```
 
+## Local systemd change: nginx restart policy
+
+**Also lives only on the box**, at
+`/etc/systemd/system/nginx.service.d/10-restart.conf`:
+
+```ini
+[Unit]
+StartLimitIntervalSec=0
+
+[Service]
+Restart=on-failure
+RestartSec=5s
+```
+
+Stock `nginx.service` ships `Restart=no`. That is the second half of the
+2026-07-29 outage: nginx failed one start and nothing ever retried, so a
+transient DNS error became a two-day outage. Ghost's own unit already has
+`Restart=always`, which is exactly why Ghost recovered from the same event and
+nginx did not.
+
+Two decisions worth keeping:
+
+- `on-failure`, not `always` — covers crashes and failed starts, but still lets
+  `systemctl stop nginx` mean stop.
+- `StartLimitIntervalSec=0` disables the start rate limiter, so systemd retries
+  indefinitely. The default (5 starts per 10s, then give up permanently) would
+  recreate the exact failure this guards against, only later. The trade is that
+  a genuinely broken config retries every 5s and fills the journal — if nginx is
+  flapping, check `journalctl -u nginx` rather than assuming a transient fault.
+
+This is a drop-in under `/etc/systemd/system/`, so nginx package upgrades do not
+touch it. It is independent of the lazy-DNS change above: lazy DNS removes one
+cause of a failed start, this makes *any* failed start recoverable. Keep both.
+
+Verify with:
+
+```bash
+systemctl show nginx -p Restart -p RestartUSec -p StartLimitIntervalUSec
+# expect: Restart=on-failure  RestartUSec=5s  StartLimitIntervalUSec=0
+```
+
 ## Theme deployment
 
 The theme is the only part of this repo that deploys automatically. Merging to
