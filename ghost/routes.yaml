@@ -2,7 +2,9 @@
 #
 # NOT deployed by CI — routes.yaml is a Ghost *setting*, not a theme file.
 # Upload it in Ghost Admin -> Settings -> Advanced -> Labs -> Routes, or copy it
-# to /var/www/ghost/content/settings/routes.yaml and `ghost restart`.
+# to /var/www/storywriter-labs/content/settings/routes.yaml and restart with
+# `sudo systemctl restart ghost_labs-storywriter-net.service` (`ghost restart`
+# fails over SSH — see "Getting onto the box" in the repo README).
 # Treat this file as the source of truth: download from admin and commit if it
 # ever changes on the server, so the two don't silently diverge.
 #
