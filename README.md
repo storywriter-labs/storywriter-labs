@@ -290,10 +290,10 @@ Details that matter if you retype this:
 After the change, a DNS failure returns 502 on those two paths only. nginx still
 starts, and the rest of the site keeps serving.
 
-The port-80 config, `labs.storywriter.net.conf`, needs the same edit — it is
+The port-80 config, `labs.storywriter.net.conf`, carries the same edit. It is
 enabled too, and one literal hostname anywhere in the loaded config is enough to
-stop nginx from starting. The fixed file is in `box/`, still waiting to be
-applied to the box; [`box/README.md`](box/README.md) has the command.
+stop nginx from starting — so fixing only the `-ssl` file left the outage
+trigger in place. It ran that way until 2026-08-05. Keep both files in step.
 
 **When it gets reverted:** `ghost update` does *not* touch this file (the
 ghost-cli nginx extension only implements a `setup()` hook). But `ghost setup`,
