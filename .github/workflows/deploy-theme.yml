@@ -19,6 +19,12 @@ jobs:
   deploy:
     name: Build, validate and deploy
     runs-on: ubuntu-latest
+    # This job ships straight to the live Ghost site, so it runs behind the
+    # `production` environment's required-reviewer gate. Without this line the
+    # environment exists but nothing references it, and the approval step is
+    # silently skipped. GHOST_ADMIN_* stay repo-level secrets -- those still
+    # resolve for a job with an environment.
+    environment: production
     steps:
       - uses: actions/checkout@v5
         with:
