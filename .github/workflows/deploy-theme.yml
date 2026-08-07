@@ -16,8 +16,12 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  deploy:
-    name: Build, validate and deploy
+  # Build and gscan run in their own job, with no `environment`, so they are
+  # never held behind the approval gate. Two reasons: a broken theme is caught
+  # automatically on every push to main, and the reviewer approves a build that
+  # is already known to pass rather than approving blind.
+  build:
+    name: Build and validate
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
@@ -51,6 +55,39 @@ jobs:
       - name: Validate theme
         working-directory: theme
         run: pnpm test:ci
+
+      # Hand the built theme to the deploy job. node_modules is the only thing
+      # that must not travel; the rest of the trimming is the deploy step's
+      # `exclude` list, which is unchanged. Hidden files stay out by default,
+      # and .gitignore is the only one in theme/, so nothing shipped is lost.
+      - name: Upload built theme
+        uses: actions/upload-artifact@v7
+        with:
+          name: theme
+          path: |
+            theme
+            !theme/node_modules
+          if-no-files-found: error
+          retention-days: 1
+
+  # Only this job touches the live site, so only this job carries the
+  # `production` environment and its required-reviewer gate. Without the
+  # `environment` line the environment exists but nothing references it, and
+  # the approval step is silently skipped. GHOST_ADMIN_* stay repo-level
+  # secrets -- those still resolve for a job with an environment.
+  deploy:
+    name: Deploy to Ghost
+    needs: build
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      # No checkout: the artifact is the build job's theme/ directory, which is
+      # everything the deploy action zips.
+      - name: Download built theme
+        uses: actions/download-artifact@v8
+        with:
+          name: theme
+          path: theme
 
       - name: Deploy to Ghost
         uses: TryGhost/action-deploy-theme@v2

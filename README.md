@@ -48,7 +48,7 @@ labs/
     redirects.yaml           301s and 302s — upload via admin
     code-injection.md        mirror of Admin -> Settings -> Code injection
   .github/workflows/
-    deploy-theme.yml         build + gscan + push theme on merge to main
+    deploy-theme.yml         build + gscan on merge to main; push theme after approval
   terraform/
     main.tf                  provider + terraform block
     backend.tf               S3 remote state (key: environments/labs/...)
@@ -356,6 +356,17 @@ The theme is the only part of this repo that deploys automatically. Merging to
 `main` with changes under `theme/` runs `.github/workflows/deploy-theme.yml`,
 which builds the assets, validates with `gscan --fatal`, and uploads the theme
 over the Ghost **Admin API** — no SSH, no deploy key on the box.
+
+⚠️ **The upload waits for an approval.** The workflow is two jobs. `build`
+compiles and gscans on every push, unattended. `deploy` declares the
+`production` environment, which has a required reviewer, so the run parks in
+*Waiting* until someone approves it in the Actions run. A theme change does
+**not** reach the live site until that click. Two consequences:
+
+- Don't merge a theme change and walk away expecting it live.
+- The environment's deployment branch policy allows `main` only, so a
+  `workflow_dispatch` run from any other branch fails at the `deploy` job. Test
+  theme changes in a local Ghost, not by dispatching a branch.
 
 One-time setup:
 
